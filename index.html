@@ -334,12 +334,27 @@
       return diffD + 'd ago';
     }
 
+    async function fetchStatus() {
+      const api = 'https://zero-api.htht8845.workers.dev/status';
+      const proxies = [
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(api),
+        'https://corsproxy.io/?' + encodeURIComponent(api),
+        'https://cors.isomorphic-git.org/' + api
+      ];
+      for (const url of proxies) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          return await res.json();
+        } catch (e) {}
+      }
+      throw new Error('all proxies failed');
+    }
+
     async function loadStatus() {
       modalContent.innerHTML = '<div class="loading">Loading...</div>';
       try {
-        const res = await fetch('https://zero-api.htht8845.workers.dev/status');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const data = await fetchStatus();
 
         let html = '<div class="users-info"><strong>' + data.users + '</strong> users online</div>';
 
