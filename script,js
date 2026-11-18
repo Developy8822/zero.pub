@@ -1,0 +1,106 @@
+const fullTitle = 'zero.pub';
+let titleIndex = 0;
+let deleting = false;
+let titleTimer = null;
+
+function setTitle(text) {
+  document.title = text || '\u200b';
+}
+
+function animateTitle() {
+  clearTimeout(titleTimer);
+  if (!deleting) {
+    titleIndex++;
+    setTitle(fullTitle.slice(0, titleIndex));
+    if (titleIndex === fullTitle.length) {
+      deleting = true;
+      titleTimer = setTimeout(animateTitle, 1500);
+      return;
+    }
+    titleTimer = setTimeout(animateTitle, 150);
+  } else {
+    titleIndex--;
+    setTitle(fullTitle.slice(0, titleIndex));
+    if (titleIndex === 0) {
+      deleting = false;
+      titleTimer = setTimeout(animateTitle, 400);
+      return;
+    }
+    titleTimer = setTimeout(animateTitle, 80);
+  }
+}
+
+animateTitle();
+
+const statusBtn = document.getElementById('statusBtn');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalClose = document.getElementById('modalClose');
+const modalContent = document.getElementById('modalContent');
+
+function formatDate(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return diffMin + ' min ago';
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return diffH + 'h ago';
+  const diffD = Math.floor(diffH / 24);
+  return diffD + 'd ago';
+}
+
+async function loadStatus() {
+  modalContent.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    const res = await fetch('https://zero-api.htht8845.workers.dev/status');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    let html = '<div class="users-info"><strong>' + data.users + '</strong> users online</div>';
+
+    const games = data.games || {};
+    for (const key of Object.keys(games)) {
+      const g = games[key];
+      const statusClass = g.status === 'undetected' ? 'undetected' : 'detected';
+      html += '<div class="game-item">';
+      if (g.icon) {
+        html += '<img class="game-icon" src="' + g.icon + '" alt="' + key + '" loading="lazy">';
+      }
+      html += '<div class="game-info">';
+      html += '<div class="game-name">' + key + '</div>';
+      html += '<div class="game-status ' + statusClass + '">' + g.status + '</div>';
+      html += '</div>';
+      html += '<div class="game-meta">';
+      html += '<div class="game-players">' + (g.players ?? '—') + ' players</div>';
+      html += '<div>' + formatDate(g.updated) + '</div>';
+      html += '</div>';
+      html += '</div>';
+    }
+
+    modalContent.innerHTML = html;
+  } catch (e) {
+    modalContent.innerHTML = '<div class="error">Failed to load status</div>';
+  }
+}
+
+statusBtn.addEventListener('click', () => {
+  modalOverlay.classList.add('active');
+  loadStatus();
+});
+
+modalClose.addEventListener('click', () => {
+  modalOverlay.classList.remove('active');
+});
+
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) {
+    modalOverlay.classList.remove('active');
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modalOverlay.classList.contains('active')) {
+    modalOverlay.classList.remove('active');
+  }
+});
